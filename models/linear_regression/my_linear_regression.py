@@ -90,7 +90,15 @@ class MyLinearRegression(IModel):
         min = params["weight_min"]
         max = params["weight_max"]
         weights = np.linspace(min, max, len(train_data))
-        self.model = logistic.fit(train_data, train_label, sample_weight=weights)
+        # print(f"{train_data[0]=}, {train_label[0]=}, {weights=}")
+        # print(
+        #     f"{train_data.shape=}, {train_label.shape=}, {weights.shape=}, {val_data.shape=}"
+        # )
+        self.model = logistic.fit(
+            train_data,
+            train_label,
+            sample_weight=weights,
+        )
 
         y_pred = self.model.predict(val_data)
 
@@ -117,7 +125,7 @@ class MyLinearRegression(IModel):
 
     def forecast(self, data):
         y_pred_proba = self.model.predict(data.numpy())
-        return torch.tensor(y_pred_proba.astype(np.float32))
+        return torch.tensor(y_pred_proba.astype(np.int32))
 
     def get_model_params(self, trial, model_config=None):
         return Utility().get_model_params(trial, self.config)

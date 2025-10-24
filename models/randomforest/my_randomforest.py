@@ -72,7 +72,8 @@ class MyRandomForest(IModel):
 
         if self.model is not None:
             if self.proba is True:
-                y_pred = self.model.predict_proba(val_data.ravel())[:, 1]
+                # y_pred = self.model.predict_proba(val_data.ravel())[:, 1]
+                y_pred = self.model.predict_proba(val_data.ravel())
             else:
                 y_pred = self.model.predict(val_data.ravel())
             score = self.evaluation(val_label, y_pred)
@@ -80,7 +81,7 @@ class MyRandomForest(IModel):
             print(f"Validation Accuracy: {score:.4f}")
             return
 
-        randomforest = RandomForestRegressor(
+        randomforest = RandomForestClassifier(
             **params
             # random_state=self.random_state,
             # n_jobs=self.n_jobs,
@@ -89,7 +90,8 @@ class MyRandomForest(IModel):
         self.model = randomforest.fit(train_data, train_label.ravel())
 
         if self.proba is True:
-            y_pred = self.model.predict_proba(val_data)[:, 1]
+            # y_pred = self.model.predict_proba(val_data)[:, 1]
+            y_pred = self.model.predict_proba(val_data)
         else:
             y_pred = self.model.predict(val_data)
 
@@ -120,7 +122,8 @@ class MyRandomForest(IModel):
     def forecast(self, data):
         # print(f"{data.shape=}, {data=}")
         if self.proba is True:
-            y_pred = self.model.predict_proba(data.numpy())[:, 1]
+            # y_pred = self.model.predict_proba(data.numpy())[:, 1]
+            y_pred = self.model.predict_proba(data.numpy())
         else:
             y_pred = self.model.predict(data.numpy())
         return torch.tensor(y_pred.astype(np.float32))

@@ -46,7 +46,25 @@ args = sys.argv
 config = Utility().load_yaml_config()
 task = MLTask.Classification
 # BaseEvaluation = root_mean_squared_error
-BaseEvaluation = accuracy_score
+# BaseEvaluation = accuracy_score
+
+
+def my_evaluation(y_true, y_pred):
+    print(f"{y_true.shape=}, {y_pred.shape=}")
+    # print(f"{y_true[0:5]=}, {y_pred[0:5]=}")
+    # y_pred_class = np.round(y_pred).astype(int)
+    return accuracy_score(y_true, np.argmax(y_pred, axis=1))
+
+
+def my_last_evaluation(y_true, y_pred):
+    print(f"{y_true.shape=}, {y_pred.shape=}")
+    # print(f"{y_true[0:5]=}, {y_pred[0:5]=}")
+    # y_pred_class = np.round(y_pred).astype(int)
+    return accuracy_score(y_true, y_pred.astype(int))
+
+
+BaseEvaluation = my_evaluation
+LastEvaluation = my_last_evaluation
 
 
 def make_models():
@@ -55,9 +73,10 @@ def make_models():
 
     my_torch = MyTorch
     mytorch = ["mytorch", dataset, my_torch, BaseEvaluation]
+    randomforest = ["randomforest", dataset, MyRandomForest, BaseEvaluation]
     models = {
         "mytorch": mytorch,
-        # "randomforest": random_forest,
+        "randomforest": randomforest,
         # "lightgbm": light_gbm,
         # "xgboost": xgboost,
         # "logistic_regression": logistic_regression,
@@ -76,14 +95,14 @@ def make_predict_models():
         "result_logistic_regression",
         None,
         MyLogisticRegression,
-        BaseEvaluation,
+        LastEvaluation,
     ]
-    xgboost = ["result_xgboost", None, MyXGBoost, BaseEvaluation]
+    xgboost = ["result_xgboost", None, MyXGBoost, LastEvaluation]
     linear_regression = [
         "result_linear_regression",
         None,
         MyLinearRegression,
-        BaseEvaluation,
+        LastEvaluation,
     ]
     models = {
         "xgboost": xgboost,
@@ -96,8 +115,8 @@ def make_predict_models():
 def get_train_models(models):
     selected_models = []
     names = [
-        "mytorch",
-        # "randomforest",
+        # "mytorch",
+        "randomforest",
         # "xgboost",
         # "lightgbm",
         # "knn",
@@ -115,8 +134,8 @@ def get_train_models(models):
 
 def get_predict_model(models):
     # selected_model = models["logistic_regression"]
-    selected_model = models["xgboost"]
-    # selected_model = models["linear_regression"]
+    # selected_model = models["xgboost"]
+    selected_model = models["linear_regression"]
     return selected_model
 
 
@@ -145,7 +164,7 @@ def main():
     elif args[1] == "optimize_predict":
         my_ml.optimize_predict(ensemble, train_models, predict_model, task, None)
     elif args[1] == "predict":
-        my_ml.predict(ensemble, train_models, predict_model, BaseEvaluation, None)
+        my_ml.predict(ensemble, train_models, predict_model, LastEvaluation, None)
     else:
         print(
             "Invalid argument. Use 'optimize', 'optimize_predict', 'train', or 'predict'."

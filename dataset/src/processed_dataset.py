@@ -8,6 +8,11 @@ from sklearn.linear_model import LinearRegression
 from dataset.src.simple_dataset import SimpleDataset
 from sklearn.preprocessing import StandardScaler
 from sklearn.compose import ColumnTransformer
+import glob
+from natsort import natsorted
+import librosa
+from sklearn.decomposition import PCA
+
 
 # from sklearn.preprocessing import Normalizer
 
@@ -33,9 +38,19 @@ class ProcessedDataset(Dataset):
         self.TRAIN_PATH = os.path.join(
             current_dir, "data", "original", "train_master.tsv"
         )
+        self.LABEL_PATH = os.path.join(
+            current_dir, "data", "original", "label_master.tsv"
+        )
         self.SAMPLE_PATH = os.path.join(
             current_dir, "data", "original", "sample_submit.tsv"
         )
+        self.TRAIN_DATA_PATH = os.path.join(
+            current_dir, "data", "original", "train_sound_*", "train_*.au"
+        )
+        self.TEST_DATA_PATH = os.path.join(
+            current_dir, "data", "original", "test_sound_*", "test_*.au"
+        )
+
         self.TRAIN_IMAGE_PATH = os.path.join(current_dir, "data", "original", "train")
         self.TEST_IMAGE_PATH = os.path.join(current_dir, "data", "original", "test")
 
@@ -285,6 +300,24 @@ class ProcessedDataset(Dataset):
 
         return arr
 
+    def my_preprocessing(self, files, master, precision=np.float32):
+        data = []
+        for file in files:
+            y, sr = librosa.load(file)
+            _ = librosa.feature.melspectrogram(y=y, sr=sr)
+            y_mel = librosa.amplitude_to_db(_).flatten()
+            data.append(y_mel.astype(precision))
+
+        # データフレームを作成
+        data_df_ = pd.DataFrame(data[0])
+        for i in range(1, 500):
+            data_df_ = pd.concat([data_df_, pd.DataFrame(data[i])], axis=1)
+        data_df = data_df_.T
+        data_df.index = master.index
+        # data_df.dropna(axis=1, inplace=True)
+        data_df = data_df[data_df.columns[:165120]]
+        return data_df
+
     def load(self):
         print(f"{os.path.exists(self.PREPOCESSED_PATH)=}")
         print(f"{self.config["overwrite"]=}")
@@ -302,31 +335,34 @@ class ProcessedDataset(Dataset):
             return
 
         print("Preprocessing dataset...")
-        train_master = pd.read_csv(self.TRAIN_PATH, sep="\t")
-        test_master = pd.read_csv(self.SAMPLE_PATH, sep="\t", header=None)
-        # print(f"{self.SAMPLE_PATH=}")
-        # print(f"{test_master=}")
-        # print(f"{test_master[0]=}")
-        # data_cnt = len(train_master)
-        train_arg = train_master[self.target_feature].repeat(10).reset_index(drop=True)
-        # train_arg = train_master[self.target_feature].reset_index(drop=True)
+        # train_master = pd.read_csv(self.TRAIN_PATH, sep="\t")
+        # test_master = pd.read_csv(self.SAMPLE_PATH, sep="\t", header=None)
 
-        test_images = self.test_augmentation(test_master, self.TEST_IMAGE_PATH)
-        train_images = self.augmentation(train_master, self.TRAIN_IMAGE_PATH)
-        # train_images = self.train_test_augmentation2(
-        #     train_master, self.TRAIN_IMAGE_PATH
-        # )
-
+        train_master = pd.read_csv(self.TRAIN_PATH, sep="\t", index_col=0)
+        label_master = pd.read_csv(self.LABEL_PATH, sep="\t")
         sample_submit = pd.read_csv(self.SAMPLE_PATH, sep="\t", header=None)
+
+        train_files = natsorted(glob.glob(self.TRAIN_DATA_PATH))
+        test_files = natsorted(glob.glob(self.TEST_DATA_PATH))
+
+        train_df = self.my_preprocessing(train_files, train_master, np.float32)
+        test_pd = self.my_preprocessing(test_files, sample_submit, np.float16)
+
+        n_components = 166
+        pca = PCA(n_components=n_components, random_state=82)
+        col = [f"pc{i}" for i in range(n_components)]
+        train_pca = pd.DataFrame(pca.fit_transform(train_df), columns=col)
+        test_pca = pd.DataFrame(pca.transform(test_pd), columns=col)
+
         test_label = sample_submit[0].astype(str).to_numpy()
 
-        self.data = train_images
-        self.label = train_arg.astype(int).to_numpy()
-        self.raw_label = train_arg
+        self.data = train_pca.to_numpy()
+        self.label = train_master["label_id"].astype(int).to_numpy()
+        self.raw_label = train_master["label_id"]
 
         self.label_number = 1
-        self.test_data = test_images
-        self.test_id = test_label
+        self.test_data = test_pca.to_numpy()
+        self.test_id = sample_submit.index.astype(str).to_numpy()
 
         data_to_save = {
             "data": self.data,
