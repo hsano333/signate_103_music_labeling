@@ -95,7 +95,7 @@ def predict(ensemble, train_models, predict_model, evaluation, other_models):
         final_result.get_numpy_data()[2]
         # + test_offset.to_frame().to_numpy()
     )
-    print(f"{type(test_data)=}")
+    # print(f"{type(test_data)=}")
 
     id = dataset.get_test_id()
     df = pd.DataFrame({"id": id, "activity": np.argmax(test_data, axis=1).astype(int)})

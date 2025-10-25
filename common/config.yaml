@@ -628,7 +628,7 @@ optimization:
   n_trials: 200
 optimize: null
 original_dataset:
-  overwrite: false
+  overwrite: true
   target_feature: label_id
 stacking:
   force_make: true

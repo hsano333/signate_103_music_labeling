@@ -8,10 +8,24 @@ from sklearn.linear_model import LinearRegression
 from dataset.src.simple_dataset import SimpleDataset
 from sklearn.preprocessing import StandardScaler
 from sklearn.compose import ColumnTransformer
+from audiomentations import (
+    Compose,
+    AddGaussianNoise,
+    TimeStretch,
+    Shift,
+    PitchShift,
+    Gain,
+    ApplyImpulseResponse,
+)
 import glob
 from natsort import natsorted
 import librosa
 from sklearn.decomposition import PCA
+import numpy as np
+import torchaudio
+from torchaudio import transforms as T
+import torch
+import random
 
 
 # from sklearn.preprocessing import Normalizer
@@ -300,13 +314,61 @@ class ProcessedDataset(Dataset):
 
         return arr
 
-    def my_preprocessing(self, files, master, precision=np.float32):
+    def stretch_data(self, data, max_data, sr):
+        if max_data < data.shape[1]:
+            data = data[:, :max_data]
+        elif max_data > data.shape[1]:
+            data = torch.nn.functional.pad(data, (0, max_data - data.shape[1]))
+        return data
+
+    def my_preprocessing(self, files, master, precision=np.float32, is_train=False):
+        arr = 0
+        max_data = 1320
+        if is_train:
+            arr = np.empty((1000, 64, max_data), dtype=np.float32)
+        else:
+            arr = np.empty((500, 64, max_data), dtype=np.float32)
         data = []
+        max_f = 0
+        i = 0
         for file in files:
             y, sr = librosa.load(file)
             _ = librosa.feature.melspectrogram(y=y, sr=sr)
             y_mel = librosa.amplitude_to_db(_).flatten()
             data.append(y_mel.astype(precision))
+
+            transforms = Compose(
+                [
+                    AddGaussianNoise(min_amplitude=0.001, max_amplitude=0.02, p=0.75),
+                    PitchShift(min_semitones=-4, max_semitones=4, p=0.75),
+                ]
+            )
+            augmented_data = transforms(samples=y, sample_rate=sr)
+            to_mel = T.MelSpectrogram(
+                sample_rate=sr, n_fft=1024, hop_length=512, n_mels=64
+            )
+            waveform = torch.tensor(augmented_data, dtype=torch.float32)
+            spec = to_mel(waveform)
+            # i = i + 1
+            if is_train:
+                spec_aug = torch.nn.Sequential(
+                    T.FrequencyMasking(freq_mask_param=random.randint(6, 20)),
+                    T.TimeMasking(time_mask_param=random.randint(50, 120)),
+                )(spec)
+
+            # if max_data < spec_aug.shape[1]:
+            #     spec_aug = spec_aug[:, :max_data]
+            # elif max_data > spec_aug.shape[1]:
+            #     spec_aug = torch.nn.functional.pad(
+            #         spec_aug, (0, max_data - spec_aug.shape[1])
+            #     )
+            #print(f"{spec_aug.shape=}")
+            arr[i] = self.stretch_data(spec, max_data, sr).numpy()
+            i = i + 1
+            if is_train:
+                arr[i] = self.stretch_data(spec_aug, max_data, sr).numpy()
+                i = i + 1
+        print(f"{max_f=}")
 
         # データフレームを作成
         data_df_ = pd.DataFrame(data[0])
@@ -346,7 +408,7 @@ class ProcessedDataset(Dataset):
         test_files = natsorted(glob.glob(self.TEST_DATA_PATH))
 
         train_df = self.my_preprocessing(train_files, train_master, np.float32)
-        test_pd = self.my_preprocessing(test_files, sample_submit, np.float16)
+        test_pd = self.my_preprocessing(test_files, sample_submit, np.float16, False)
 
         n_components = 166
         pca = PCA(n_components=n_components, random_state=82)

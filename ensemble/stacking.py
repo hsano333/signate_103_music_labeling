@@ -220,12 +220,8 @@ class Stacking(IModel):
 
     def learn_final(self, model, model_name, dataset, directory, evaluation):
         print(f"learn final:{model=}")
-        # print("learn_final No.1")
-        # kf = self.get_kf(task)
         (data, label, test) = dataset.get_numpy_data()
         label_number = dataset.get_label_number()
-        # print("learn_final No.2:{data[0]=}, {label[0]=}, {test[0]=}")
-        # print("learn_final No.2:{data[30]=}, {label[30]=}, {test[30]=}")
 
         tmp_name = dataset.get_name()
         preds = []
@@ -249,7 +245,6 @@ class Stacking(IModel):
         train_data, val_data = data, data
         train_label, val_label = label, label
 
-        print(f"final train:{train_data.shape=}, {val_data.shape=},{test.shape=}")
         new_train = SimpleDataset(
             train_data,
             train_label,
@@ -287,10 +282,7 @@ class Stacking(IModel):
         pred = new_model.forecast(torch.tensor(val_data.astype(np.float32)))
         preds.append(pred.numpy())
 
-        print(f"final forecast:{val_data.shape=},{test.shape=}")
         pred_test = new_model.forecast(torch.tensor(test.astype(np.float32)))
         preds_test.append(pred_test.numpy())
-        print(f"final result:{pred.shape=}, {pred_test.shape=}")
-        # print(f"{preds_test[-1].shape=}, {len(preds_test)=}, {preds_test[0:10]=}")
         #######################################################
         return (pred, pred_test)
