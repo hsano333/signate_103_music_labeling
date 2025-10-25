@@ -205,10 +205,10 @@ class Stacking(IModel):
         (pred, test) = self.learn_final(
             model, model_name, dataset, directory, evaluation
         )
-        print(f"final: {pred[0]=}, {test[0]=}")
-        print(f"final: {pred[10]=}, {test[10]=}")
-        print(f"final: {pred[20]=}, {test[20]=}")
-        print(f"final: {pred[30]=}, {test[30]=}")
+        # print(f"final: {pred[0]=}, {test[0]=}")
+        # print(f"final: {pred[10]=}, {test[10]=}")
+        # print(f"final: {pred[20]=}, {test[20]=}")
+        # print(f"final: {pred[30]=}, {test[30]=}")
         # ラベルはすべてのデータセットで同じなので、最初のデータセットから取得
         (_, label, _) = next(iter(self.oof.dataset_models.values()))[0].get_numpy_data()
         np.savez(file_cv_new_test_path, pred=pred, test=test)
@@ -219,12 +219,13 @@ class Stacking(IModel):
         return combined_dataset
 
     def learn_final(self, model, model_name, dataset, directory, evaluation):
-        print("learn_final No.1")
+        print(f"learn final:{model=}")
+        # print("learn_final No.1")
         # kf = self.get_kf(task)
         (data, label, test) = dataset.get_numpy_data()
         label_number = dataset.get_label_number()
-        print("learn_final No.2:{data[0]=}, {label[0]=}, {test[0]=}")
-        print("learn_final No.2:{data[30]=}, {label[30]=}, {test[30]=}")
+        # print("learn_final No.2:{data[0]=}, {label[0]=}, {test[0]=}")
+        # print("learn_final No.2:{data[30]=}, {label[30]=}, {test[30]=}")
 
         tmp_name = dataset.get_name()
         preds = []
@@ -247,6 +248,8 @@ class Stacking(IModel):
         # train_label, val_label = label[tr_idx], label[val_idx]
         train_data, val_data = data, data
         train_label, val_label = label, label
+
+        print(f"final train:{train_data.shape=}, {val_data.shape=},{test.shape=}")
         new_train = SimpleDataset(
             train_data,
             train_label,
@@ -284,8 +287,10 @@ class Stacking(IModel):
         pred = new_model.forecast(torch.tensor(val_data.astype(np.float32)))
         preds.append(pred.numpy())
 
+        print(f"final forecast:{val_data.shape=},{test.shape=}")
         pred_test = new_model.forecast(torch.tensor(test.astype(np.float32)))
         preds_test.append(pred_test.numpy())
+        print(f"final result:{pred.shape=}, {pred_test.shape=}")
         # print(f"{preds_test[-1].shape=}, {len(preds_test)=}, {preds_test[0:10]=}")
         #######################################################
         return (pred, pred_test)

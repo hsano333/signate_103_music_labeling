@@ -102,7 +102,7 @@ class OOF:
         else:
             split_label = label[:, 0]
         # print(f"{split_label=}")
-        #print(f"{data.shape=}, {label.shape=}, {test.shape=}")
+        # print(f"{data.shape=}, {label.shape=}, {test.shape=}")
         y_prob_all = np.zeros((len(data), label_unique_num), np.float32)
         y_test_all = np.zeros((len(test), label_unique_num), np.float32)
         # y_true_all = np.zeros((len(data), 10), np.float32)
@@ -167,6 +167,7 @@ class OOF:
             y_test_all += pred_test.numpy()
 
         # final_score = evaluation(y_true_all, np.argmax(y_prob_all, axis=1))
+        print(f"make_new_feature:{y_true_all.shape=}, {y_prob_all.shape=}")
         final_score = evaluation(y_true_all, y_prob_all)
         print(f"Out of Fold Final Score: {final_score:.4f}")
         return (y_prob_all, y_test_all / self.KFoldSplit)

@@ -50,6 +50,7 @@ task = MLTask.Classification
 
 
 def my_evaluation(y_true, y_pred):
+    print("My Evaluation")
     print(f"{y_true.shape=}, {y_pred.shape=}")
     # print(f"{y_true[0:5]=}, {y_pred[0:5]=}")
     # y_pred_class = np.round(y_pred).astype(int)
@@ -57,10 +58,14 @@ def my_evaluation(y_true, y_pred):
 
 
 def my_last_evaluation(y_true, y_pred):
+    print("Last Evaluation")
     print(f"{y_true.shape=}, {y_pred.shape=}")
-    # print(f"{y_true[0:5]=}, {y_pred[0:5]=}")
+    print(f"{y_true[0:5]=}, {y_pred[0:5]=}")
     # y_pred_class = np.round(y_pred).astype(int)
-    return accuracy_score(y_true, y_pred.astype(int))
+    if y_pred.ndim == 1:
+        return accuracy_score(y_true, y_pred.astype(int))
+    else:
+        return accuracy_score(y_true, np.argmax(y_pred, axis=1))
 
 
 BaseEvaluation = my_evaluation
@@ -133,9 +138,9 @@ def get_train_models(models):
 
 
 def get_predict_model(models):
-    # selected_model = models["logistic_regression"]
+    selected_model = models["logistic_regression"]
     # selected_model = models["xgboost"]
-    selected_model = models["linear_regression"]
+    # selected_model = models["linear_regression"]
     return selected_model
 
 

@@ -98,7 +98,7 @@ def predict(ensemble, train_models, predict_model, evaluation, other_models):
     print(f"{type(test_data)=}")
 
     id = dataset.get_test_id()
-    df = pd.DataFrame({"id": id, "activity": test_data.reshape(-1).astype(int)})
+    df = pd.DataFrame({"id": id, "activity": np.argmax(test_data, axis=1).astype(int)})
     df.to_csv("submission.csv", index=False, header=False, sep=",")
 
     # df2 = pd.DataFrame({"activity": pred_data.reshape(-1)})

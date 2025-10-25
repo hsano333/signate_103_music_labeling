@@ -72,7 +72,6 @@ class MyRandomForest(IModel):
 
         if self.model is not None:
             if self.proba is True:
-                # y_pred = self.model.predict_proba(val_data.ravel())[:, 1]
                 y_pred = self.model.predict_proba(val_data.ravel())
             else:
                 y_pred = self.model.predict(val_data.ravel())

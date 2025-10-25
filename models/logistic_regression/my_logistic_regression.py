@@ -47,6 +47,7 @@ class MyLogisticRegression(IModel):
         self.n_jobs = -1
         # self.n_estimators = self.config["n_estimators"]
         self.is_optimize = self.config.get("is_optimize", False)
+        self.proba = config.get("proba", True)
 
         self.old_score = 0.0
         if os.path.isdir(self.save_dir) is False:
@@ -70,12 +71,18 @@ class MyLogisticRegression(IModel):
         pass
 
     def learn(self, i, params=None):
+        # print(f"Learning MyLogisticRegression Model Iteration:{i+1}")
         # print(f"{params=}")
         (train_data, train_label, _) = self.train_dataset.get_numpy_data()
         (val_data, val_label, _) = self.val_dataset.get_numpy_data()
 
         if self.model is not None:
-            y_pred_proba = self.model.predict_proba(val_data)[:, 1]
+            # y_pred_proba = self.model.predict_proba(val_data)[:, 1]
+            if self.proba is True:
+                y_pred_proba = self.model.predict_proba(val_data)
+            else:
+                y_pred_proba = self.model.predict(val_data.ravel())
+
             score = self.evaluation(val_label, y_pred_proba)
             print("Logistic Regression Model already exists. Skipping training.")
             print(f"Validation Score: {score:.4f}")
@@ -93,7 +100,11 @@ class MyLogisticRegression(IModel):
         # print(f"{train_data[0]=}, {train_label[0]=}")
         self.model = logistic.fit(train_data, train_label)
 
-        y_pred = self.model.predict_proba(val_data)[:, 1]
+        # y_pred = self.model.predict_proba(val_data)[:, 1]
+        if self.proba is True:
+            y_pred = self.model.predict_proba(val_data)
+        else:
+            y_pred = self.model.predict(val_data.ravel())
 
         # 評価
         score = self.evaluation(val_label, y_pred)
@@ -119,8 +130,8 @@ class MyLogisticRegression(IModel):
             )
 
     def forecast(self, data):
-        y_pred_proba = self.model.predict_proba(data.numpy())[:, 1]
-        return torch.tensor(y_pred_proba.astype(np.float32))
+        y_pred_proba = self.model.predict_proba(data.numpy())
+        return torch.tensor(y_pred_proba)
 
     # def get_model_params(self, trial, model_config):
     #     params = {}

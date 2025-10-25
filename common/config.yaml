@@ -327,6 +327,7 @@ model:
   result_logistic_regression:
     is_optimize: false
     learned_params:
+      multi_class: multinomial
       C: 6212.449005890426
       class_weight: balanced
       l1_ratio: 0.007657340811358715
@@ -366,6 +367,7 @@ model:
     optimize_overwrite: true
     overwrite: true
     threshold: 0.5
+    proba: true
   result_xgboost:
     eval_metric: rmse
     is_optimize: false

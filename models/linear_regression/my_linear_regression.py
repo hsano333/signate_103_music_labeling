@@ -74,7 +74,7 @@ class MyLinearRegression(IModel):
         (val_data, val_label, _) = self.val_dataset.get_numpy_data()
 
         if self.model is not None:
-            y_pred_proba = self.model.predict(val_data)[:, 1]
+            y_pred_proba = self.model.predict(val_data)
             score = self.evaluation(val_label, y_pred_proba)
             print("Linear Regression Model already exists. Skipping training.")
             print(f"Validation Score: {score:.4f}")
@@ -94,6 +94,9 @@ class MyLinearRegression(IModel):
         # print(
         #     f"{train_data.shape=}, {train_label.shape=}, {weights.shape=}, {val_data.shape=}"
         # )
+        # print("linear Regression Training Started")
+        # print(f"{train_data.shape=}, {train_label.shape=}")
+        # print(f"{train_data[0:5]=}, {train_label[0:5]=}")
         self.model = logistic.fit(
             train_data,
             train_label,
