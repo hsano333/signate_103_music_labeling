@@ -122,6 +122,9 @@ class Stacking(IModel):
     def make_features(self, forece_make=False):
         return self.oof.make_features(forece_make)
 
+    def clear(self):
+        pass
+
     #     preds = []
     #     tests = []
     #
@@ -205,10 +208,6 @@ class Stacking(IModel):
         (pred, test) = self.learn_final(
             model, model_name, dataset, directory, evaluation
         )
-        # print(f"final: {pred[0]=}, {test[0]=}")
-        # print(f"final: {pred[10]=}, {test[10]=}")
-        # print(f"final: {pred[20]=}, {test[20]=}")
-        # print(f"final: {pred[30]=}, {test[30]=}")
         # ラベルはすべてのデータセットで同じなので、最初のデータセットから取得
         (_, label, _) = next(iter(self.oof.dataset_models.values()))[0].get_numpy_data()
         np.savez(file_cv_new_test_path, pred=pred, test=test)
@@ -284,5 +283,7 @@ class Stacking(IModel):
 
         pred_test = new_model.forecast(torch.tensor(test.astype(np.float32)))
         preds_test.append(pred_test.numpy())
+
+        new_model.clear()
         #######################################################
         return (pred, pred_test)

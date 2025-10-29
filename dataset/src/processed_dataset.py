@@ -38,8 +38,6 @@ from dataset.src.time_dataset import TimeDataset
 
 import joblib
 
-import torch
-import numpy as np
 import pandas as pd
 import os
 import cv2
@@ -82,6 +80,9 @@ class ProcessedDataset(Dataset):
 
     def get_test_id(self):
         return self.test_id
+
+    def get_label_index(self):
+        return self.raw_label.index
 
     def set_raw_label(self, raw_label):
         # pandas
@@ -314,28 +315,41 @@ class ProcessedDataset(Dataset):
 
         return arr
 
-    def stretch_data(self, data, max_data, sr):
+    def convert_mal2db(self, data, max_data, sr):
         if max_data < data.shape[1]:
             data = data[:, :max_data]
         elif max_data > data.shape[1]:
             data = torch.nn.functional.pad(data, (0, max_data - data.shape[1]))
-        return data
+        return librosa.power_to_db(data, ref=np.max)
+        # return data
+
+    def get_mean_std(self, data_all):
+        global_mean = data_all.mean(axis=(0, 2))
+        global_std = data_all.std(axis=(0, 2))
+        epsilon = 1e-7
+        global_std_safe = global_std + epsilon
+
+        # ブロードキャストのために形状を (1, 96, 1) に拡張
+        mean_broadcast = global_mean[:, np.newaxis]
+        std_broadcast = global_std_safe[:, np.newaxis]
+
+        # 標準化の実行: (データ - 平均) / 標準偏差
+        # NumPyが自動的に (96, 1) を (500, 96, 1305) にブロードキャストして計算します
+        # standardized_data = (data_all - mean_broadcast) / std_broadcast
+
+        return mean_broadcast, std_broadcast
 
     def my_preprocessing(self, files, master, precision=np.float32, is_train=False):
         arr = 0
-        max_data = 1320
+        max_data = 960
+        n_mels = 96
         if is_train:
-            arr = np.empty((1000, 64, max_data), dtype=np.float32)
+            arr = np.empty((1000, n_mels, max_data), dtype=np.float32)
         else:
-            arr = np.empty((500, 64, max_data), dtype=np.float32)
-        data = []
-        max_f = 0
+            arr = np.empty((500, n_mels, max_data), dtype=np.float32)
         i = 0
         for file in files:
             y, sr = librosa.load(file)
-            _ = librosa.feature.melspectrogram(y=y, sr=sr)
-            y_mel = librosa.amplitude_to_db(_).flatten()
-            data.append(y_mel.astype(precision))
 
             transforms = Compose(
                 [
@@ -345,40 +359,28 @@ class ProcessedDataset(Dataset):
             )
             augmented_data = transforms(samples=y, sample_rate=sr)
             to_mel = T.MelSpectrogram(
-                sample_rate=sr, n_fft=1024, hop_length=512, n_mels=64
+                sample_rate=sr,
+                n_fft=2048,
+                win_length=2048,
+                hop_length=512,
+                n_mels=n_mels,
             )
             waveform = torch.tensor(augmented_data, dtype=torch.float32)
+            waveform_ori = torch.tensor(y, dtype=torch.float32)
             spec = to_mel(waveform)
-            # i = i + 1
+            spec_ori = to_mel(waveform_ori)
             if is_train:
                 spec_aug = torch.nn.Sequential(
                     T.FrequencyMasking(freq_mask_param=random.randint(6, 20)),
                     T.TimeMasking(time_mask_param=random.randint(50, 120)),
                 )(spec)
 
-            # if max_data < spec_aug.shape[1]:
-            #     spec_aug = spec_aug[:, :max_data]
-            # elif max_data > spec_aug.shape[1]:
-            #     spec_aug = torch.nn.functional.pad(
-            #         spec_aug, (0, max_data - spec_aug.shape[1])
-            #     )
-            #print(f"{spec_aug.shape=}")
-            arr[i] = self.stretch_data(spec, max_data, sr).numpy()
+            arr[i] = self.convert_mal2db(spec_ori, max_data, sr)
             i = i + 1
             if is_train:
-                arr[i] = self.stretch_data(spec_aug, max_data, sr).numpy()
+                arr[i] = self.convert_mal2db(spec_aug, max_data, sr)
                 i = i + 1
-        print(f"{max_f=}")
-
-        # データフレームを作成
-        data_df_ = pd.DataFrame(data[0])
-        for i in range(1, 500):
-            data_df_ = pd.concat([data_df_, pd.DataFrame(data[i])], axis=1)
-        data_df = data_df_.T
-        data_df.index = master.index
-        # data_df.dropna(axis=1, inplace=True)
-        data_df = data_df[data_df.columns[:165120]]
-        return data_df
+        return arr
 
     def load(self):
         print(f"{os.path.exists(self.PREPOCESSED_PATH)=}")
@@ -403,28 +405,35 @@ class ProcessedDataset(Dataset):
         train_master = pd.read_csv(self.TRAIN_PATH, sep="\t", index_col=0)
         label_master = pd.read_csv(self.LABEL_PATH, sep="\t")
         sample_submit = pd.read_csv(self.SAMPLE_PATH, sep="\t", header=None)
+        sample_submit.columns = ["file_name", "label_id"]
 
         train_files = natsorted(glob.glob(self.TRAIN_DATA_PATH))
         test_files = natsorted(glob.glob(self.TEST_DATA_PATH))
 
-        train_df = self.my_preprocessing(train_files, train_master, np.float32)
-        test_pd = self.my_preprocessing(test_files, sample_submit, np.float16, False)
+        train_np = self.my_preprocessing(train_files, train_master, np.float32)
+        test_np = self.my_preprocessing(test_files, sample_submit, np.float16, False)
+
+        all_np = np.concatenate((train_np, test_np), axis=0)
+        (mean, std) = self.get_mean_std(all_np)
+
+        standardized_train_np = (train_np - mean) / std
+        standardized_test_np = (test_np - mean) / std
 
         n_components = 166
-        pca = PCA(n_components=n_components, random_state=82)
-        col = [f"pc{i}" for i in range(n_components)]
-        train_pca = pd.DataFrame(pca.fit_transform(train_df), columns=col)
-        test_pca = pd.DataFrame(pca.transform(test_pd), columns=col)
+        # pca = PCA(n_components=n_components, random_state=82)
+        # col = [f"pc{i}" for i in range(n_components)]
+        # train_pca = pd.DataFrame(pca.fit_transform(train_df), columns=col)
+        # test_pca = pd.DataFrame(pca.transform(test_pd), columns=col)
 
-        test_label = sample_submit[0].astype(str).to_numpy()
+        # test_label = sample_submit[0].astype(str).to_numpy()
 
-        self.data = train_pca.to_numpy()
+        self.data = standardized_train_np
         self.label = train_master["label_id"].astype(int).to_numpy()
         self.raw_label = train_master["label_id"]
 
         self.label_number = 1
-        self.test_data = test_pca.to_numpy()
-        self.test_id = sample_submit.index.astype(str).to_numpy()
+        self.test_data = standardized_test_np
+        self.test_id = sample_submit["file_name"].to_numpy()
 
         data_to_save = {
             "data": self.data,

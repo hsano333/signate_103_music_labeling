@@ -30,3 +30,7 @@ class IModel(ABC):
     @abstractmethod
     def check_params(self, params):
         pass
+
+    @abstractmethod
+    def clear(self):
+        pass

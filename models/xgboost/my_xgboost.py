@@ -92,14 +92,14 @@ class MyXGBoost(IModel):
         #     f"train_data.shape: {train_data.shape}, train_label.shape: {train_label.shape}"
         # )
         (val_data, val_label, _) = self.val_dataset.get_numpy_data()
-        print(f"xgboostNo.1:{train_data.shape=}, {train_label.shape=}")
-        print(f"{val_data.shape=}, {val_label.shape=}")
-        print(f"{train_data[0]=}, {train_label[0]=}")
-        print(f"{train_data[30]=}, {train_label[30]=}")
-        print(f"{train_data[3330]=}, {train_label[3330]=}")
-        print(f"xgboost No.2:{val_data[0]=}, {val_label[0]=}")
-        print(f"xgboost No.2:{val_data[30]=}, {val_label[30]=}")
-        print(f"xgboost No.2:{val_data[3330]=}, {val_label[3330]=}")
+        # print(f"xgboostNo.1:{train_data.shape=}, {train_label.shape=}")
+        # print(f"{val_data.shape=}, {val_label.shape=}")
+        # print(f"{train_data[0]=}, {train_label[0]=}")
+        # print(f"{train_data[30]=}, {train_label[30]=}")
+        # print(f"{train_data[3330]=}, {train_label[3330]=}")
+        # print(f"xgboost No.2:{val_data[0]=}, {val_label[0]=}")
+        # print(f"xgboost No.2:{val_data[30]=}, {val_label[30]=}")
+        # print(f"xgboost No.2:{val_data[3330]=}, {val_label[3330]=}")
         xgb_train = xgb.DMatrix(train_data, label=train_label)
         print(f"{xgb_train=}")
         xgb_val = xgb.DMatrix(val_data, label=val_label)
@@ -180,4 +180,7 @@ class MyXGBoost(IModel):
         return model_config.get("learned_params", {})
 
     def check_params(self, params):
+        pass
+
+    def clear(self):
         pass

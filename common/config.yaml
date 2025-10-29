@@ -140,22 +140,21 @@ model:
     optimize_overwrite: false
     overwrite: true
   mytorch:
-    batch_size: 32
+    batch_size: 4
     continue: false
     display_step: 10
     dropout: 0.2
-    epoch: 15
+    epoch: 25
     is_optimize: false
     learned_params:
-      batch_size: 16
-      # gamma: 0.8258243781423222
-      lr: 0.007918767120253148
-      # max_grad_norm: 0
-      # momentum: 0.9888896040774584
+      batch_size: 32
+      lr: 0.0009317196594344735
+      max_grad_norm: 0
+      momentum: 0.9219103612496287
       random_state: 42
-      scheduler: StepLR
-      step_size: 22
-      # weight_decay: 0.006360193779807544
+      scheduler: CosineAnnealingLR
+      t_max: 33
+      weight_decay: 0.009026481753194694
     max_depth: 5
     optimize:
       adam:
@@ -193,13 +192,14 @@ model:
         const: null
       sgd:
         categorical: null
-        const: null
+        const:
+          nesterov: true
         float:
           lr:
           - 1e-04
           - 1e-03
           momentum:
-          - 0.0
+          - 0.7
           - 0.99
           weight_decay:
           - 1e-6
@@ -208,6 +208,7 @@ model:
       torch:
         categorical:
           batch_size:
+          - 16
           - 32
           - 64
           - 128
@@ -220,7 +221,7 @@ model:
           - None
           - StepLR
           - CosineAnnealingLR
-    optimize_direction: minimize
+    optimize_direction: maximize
     optimize_overwrite: true
     overwrite: true
     pos_weight: 7.5
@@ -251,7 +252,6 @@ model:
   randomforest:
     is_optimize: false
     learned_params:
-      #criterion: squared_error
       criterion: log_loss
       max_depth: 15
       max_features: null
@@ -327,10 +327,10 @@ model:
   result_logistic_regression:
     is_optimize: false
     learned_params:
-      multi_class: multinomial
       C: 6212.449005890426
       class_weight: balanced
       l1_ratio: 0.007657340811358715
+      multi_class: multinomial
       penalty: l2
       random_state: 42
       solver: newton-cg
@@ -366,14 +366,13 @@ model:
     optimize_direction: minimize
     optimize_overwrite: true
     overwrite: true
-    threshold: 0.5
     proba: true
+    threshold: 0.5
   result_xgboost:
     eval_metric: rmse
     is_optimize: false
     learned_params:
       booster: gbtree
-      num_class: 10
       colsample_bytree: 0.8699702581250595
       eval_metric: mlogloss
       gamma: 4.733766861880925
@@ -381,6 +380,7 @@ model:
       max_depth: 12
       min_child_weight: 20
       n_estimators: 7
+      num_class: 10
       objective: multi:softmax
       reg_alpha: 0.8265186899244789
       reg_lambda: 0.9917749807057756
@@ -400,8 +400,8 @@ model:
         - hist
       const:
         eval_metric: mlogloss
-        objective: multi:softmax
         num_class: 10
+        objective: multi:softmax
       float:
         colsample_bytree:
         - 0.4
@@ -625,10 +625,10 @@ model:
     overwrite: true
     subsample: 0.8
 optimization:
-  n_trials: 200
+  n_trials: 100
 optimize: null
 original_dataset:
-  overwrite: true
+  overwrite: false
   target_feature: label_id
 stacking:
   force_make: true

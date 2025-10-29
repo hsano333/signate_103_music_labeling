@@ -150,9 +150,9 @@ class BaseManager:
             # print(
             #     f"{tmp_label=}, {result_prediction=}, {torch.max(tmp_prediction, 1)[0]=}"
             # )
-            if batch_ndx % 1000 == 0:
-                print(f"{label.shape=},{label=}")
-                print(f"{result_prediction.shape=},{result_prediction=}")
+            # if batch_ndx % 1000 == 0:
+            # print(f"{label.shape=},{label=}")
+            # print(f"{result_prediction.shape=},{result_prediction=}")
             metrics[METRICS_LABEL1_NDX, start_ndx:end_ndx] = tmp_label
             metrics[METRICS_PRED1_NDX, start_ndx:end_ndx] = result_prediction
             metrics[METRICS_LOSS1_NDX, start_ndx:end_ndx] = loss.detach()

@@ -137,3 +137,6 @@ class MyPolynomial(IModel):
 
     def check_params(self, params):
         pass
+
+    def clear(self):
+        pass

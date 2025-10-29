@@ -3,18 +3,19 @@ import importlib
 import pandas as pd
 import sys
 from models.abstract_model import IModel
+import gc
 
 # from .bento_demand_24.model import Model
-from .handwriting_100.model import Model
+from .music_labeling_103.model import Model
 from pathlib import Path
 from torch.amp import GradScaler
 
 
 # modelの切り替え
-from .handwriting_100.manager import BaseManager
+from .music_labeling_103.manager import BaseManager
 
-import models.mytorch.handwriting_100.model
-import models.mytorch.handwriting_100.manager
+import models.mytorch.music_labeling_103.model
+import models.mytorch.music_labeling_103.manager
 
 from torch.utils.tensorboard import SummaryWriter
 
@@ -31,7 +32,7 @@ import time
 import datetime
 
 
-importlib.reload(models.mytorch.handwriting_100.manager)
+importlib.reload(models.mytorch.music_labeling_103.manager)
 
 # BATCH_SIZE = 32
 NUM_WORKERS = 4
@@ -92,11 +93,29 @@ class MyTorch(IModel):
     def reload(self):
         print(f"reload model from {self.save_model_path}")
         checkpoint = torch.load(self.save_model_path, weights_only=False)
+        # if self.model is None:
+        #     self.model = Model(10)
+        #     optimu_params = self.get_optimu_params(None, self.config)
+        #     self.optimizer = self.manager.get_optimizer(optimu_params)
         self.model.load_state_dict(checkpoint["model_state_dict"])
         self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
         self.start_epoch = 0
 
+    def clear(self):
+        print("clear CUDA memory")
+        # self.model("cpu")
+        del self.model
+        del self.optimizer
+        del self.loss
+
+        gc.collect()
+        torch.cuda.empty_cache()
+        self.model = None
+        self.optimizer = None
+        self.loss = None
+
     def load(self):
+        print("load model")
         tmp_model = self.manager.get_model()
         path = self.manager.get_path()
         saved_tmp_filename = self.manager.get_tmp_model_name()
@@ -110,6 +129,9 @@ class MyTorch(IModel):
         # 最適化のときだけpin_memoryを有効にする
         pin_memory = self.is_optimize
 
+        # print(f"{self.config["batch_size"]=}")
+        # print(f"{self.config["batch_size"]=}")
+        # print(f"{self.config["batch_size"]=}")
         self.train_batch = DataLoader(
             dataset=self.train_dataset,
             batch_size=self.config["batch_size"],
@@ -127,6 +149,7 @@ class MyTorch(IModel):
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model = torch.compile(tmp_model.to(self.device))
+        self.model
         # self.optimizer = self.manager.get_optimizer()
         self.optimizer = None
         self.loss = 0
@@ -251,14 +274,16 @@ class MyTorch(IModel):
 
     def forecast(self, data):
         self.model.eval()
-        with torch.no_grad():
+        with torch.no_grad(), torch.cuda.amp.autocast():
             data = data.to(self.device)
             prediction = self.model(data)
-
-        # print(f"Foreact No.1 :tmp_prediction={prediction[0:15]}")
-        print(f"{prediction.shape=}")
-        # print(f"{prediction=}")
-        return (prediction).to("cpu")
+            data = data.to("cpu")
+            # del data
+            # torch.cuda.empty_cache()
+        prediction = (prediction).to("cpu")
+        del data
+        torch.cuda.empty_cache()
+        return prediction
 
     def save_model(self, epoch_ndx, best_score, path):
         # path.find(".")
@@ -301,7 +326,7 @@ class MyTorch(IModel):
             )
             trn_score = self.manager.log_metrics(ndx, "trn", trnMetrics, self.writer)
             val_score = self.manager.log_metrics(ndx, "val", valMetrics, self.writer)
-            score = (trn_score + val_score * 4) / 5.0
+            score = (trn_score + val_score * 9) / 10.0
 
             if self.is_optimize:
                 if ndx % 10 == 0:
@@ -310,7 +335,7 @@ class MyTorch(IModel):
                     )
                 # print(f"{self.max_direction=}, {self.best_score=}")
                 if (
-                    (score > self.best_score and self.max_direction and score > 0.5)
+                    (score > self.best_score and self.max_direction and score > 0.2)
                     or (score <= self.best_score and not self.max_direction)
                 ) and (ndx > self.epoch / 5):
                     self.best_score = score

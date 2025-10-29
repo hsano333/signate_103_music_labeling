@@ -251,3 +251,6 @@ class MyLogisticRegression(IModel):
         if penalty != "elasticnet":
             l1_ratio = None
             pass
+
+    def clear(self):
+        pass

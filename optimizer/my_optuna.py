@@ -31,12 +31,6 @@ class MyOptuna:
         self.dir_path.mkdir(parents=True, exist_ok=True)
         self.KFoldSplit = self.config["stacking"]["k_fold"]
 
-    # def optimize(self):
-    #     if len(self.dataset_models) != 1:
-    #         raise ValueError(
-    #             "Optimizer requires exactly one dataset and one model to learn."
-    #         )
-
     def add_model(self, name, dataset, model, evaluation):
         self.dataset_models[name] = (dataset, model, evaluation)
 
@@ -46,10 +40,8 @@ class MyOptuna:
     # def optimize(self, model, model_name, dataset, task, directory, config):
     def optimize(self, model_info, eval, evaluation):
         opt = OptunaOptimizer(model_info, eval, evaluation)
-        # pruner = optuna.pruners.MedianPruner(n_startup_trials=5, n_warmup_steps=10)
         # デフォルトのまま
         pruner = optuna.pruners.MedianPruner()
-        # print(f"{opt.model_config=}")
         study = optuna.create_study(
             direction=opt.optimize_direction,
             pruner=pruner,
@@ -57,17 +49,8 @@ class MyOptuna:
         opt.model_config["is_optimize"] = True
         study.optimize(opt, n_trials=self.config["optimization"]["n_trials"])
         opt.model_config["is_optimize"] = False
-        # print(f"{study.best_params=}")
-        # print(f"{opt.config=}")
         opt.model_config["learned_params"] = study.best_params
-        # print(f"pre:{opt.model_config["learned_params"]=}")
         Utility().update_const_params(opt.model_config)
-        # print(f"post:{opt.model_config["learned_params"]=}")
-        # opt.model_config["learned_params"] = study.best_params
-        # opt.model_config.learn_params.update(
-        #     {k: v for k, v in study.best_params.items()}
-        # )
-        # print(f"update:{opt.model_config=}")
         return opt.model_config
 
     def optimize_models(self, task, forece_make=False):
@@ -84,8 +67,6 @@ class MyOptuna:
             directory = self.dir_path / name
             optimized_config_path = (directory / "optimized_param.yaml").as_posix()
             Utility().make_kfold_directory(directory, self.KFoldSplit)
-            # eval = BinaryAnalysis().accuracy
-            # eval = evaluation
             trnsform_label = BinaryAnalysis().transform_label
 
             if not os.path.isfile(optimized_config_path) or forece_make:
@@ -99,10 +80,6 @@ class MyOptuna:
                     trnsform_label,
                     self.config,
                 )
-                # directory.mkdir(parents=True, exist_ok=True)
-                # (pred, test) = self.make_new_feature(
-                #     model, model_name, dataset, task, directory
-                # )
                 optimized_data = self.optimize(model_info, eval, evaluation)
                 with open(optimized_config_path, mode="w", encoding="utf-8") as f:
                     yaml.safe_dump(optimized_data, f)
@@ -111,7 +88,6 @@ class MyOptuna:
             else:
                 with open(optimized_config_path, "r") as f:
                     self.config["model"][model_name] = yaml.safe_load(f)
-        # print(f"{self.config=}")
 
         # 10未満はテストなので保存しない
         if self.config["optimization"]["n_trials"] >= 10:

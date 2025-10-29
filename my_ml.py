@@ -99,7 +99,7 @@ def predict(ensemble, train_models, predict_model, evaluation, other_models):
 
     id = dataset.get_test_id()
     df = pd.DataFrame({"id": id, "activity": np.argmax(test_data, axis=1).astype(int)})
-    df.to_csv("submission.csv", index=False, header=False, sep=",")
+    df.to_csv("submission.tsv", index=False, header=False, sep="\t")
 
     # df2 = pd.DataFrame({"activity": pred_data.reshape(-1)})
     # df2.to_csv("submission_pred.tsv", index=False, header=False, sep="\t")

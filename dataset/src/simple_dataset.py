@@ -27,6 +27,7 @@ class SimpleDataset(Dataset):
         return len(self.data)
 
     def __getitem__(self, ndx):
+        # print(f"{self.data[ndx].shape=}")
         return (self.data[ndx], self.label[ndx])
 
     def get_name(self):

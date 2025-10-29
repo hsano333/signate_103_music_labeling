@@ -8,10 +8,13 @@ from dataset.src.combined_dataset import CombinedDataset
 from dataset.src.simple_dataset import SimpleDataset
 from dataset.src.image_dataset import ImageDataset
 from pathlib import Path
+from torchaudio import transforms
 from common.utility import Utility
 import numpy as np
 import torch
+import gc
 import os
+import random
 
 
 class OOF:
@@ -83,6 +86,15 @@ class OOF:
         combined_dataset = CombinedDataset(result_pred, dataset, result_test, self.name)
         return combined_dataset
 
+    def data_augmentation(self, data):
+        # print(f"data_augmentation before:{data.shape=}, {data[0]=}")
+        tmp = torch.nn.Sequential(
+            transforms.FrequencyMasking(freq_mask_param=random.randint(6, 20)),
+            transforms.TimeMasking(time_mask_param=random.randint(50, 120)),
+        )(torch.from_numpy(data.astype(np.float32)))
+        # print(f"data_augmentation before:{tmp.numpy().shape=}, {tmp[0]=}")
+        return tmp.numpy()
+
     def make_new_feature(self, model, model_name, dataset, directory, evaluation):
         kf = Utility().get_kf(self.task, self.KFoldSplit, self.RANDAOM_STATE)
         (data, label, test) = dataset.get_numpy_data()
@@ -92,8 +104,11 @@ class OOF:
         label_unique_num = np.unique(label).shape[0]
 
         tmp_name = dataset.get_name()
-        preds = []
-        preds_test = []
+        # preds = []
+        # preds_test = []
+        y_prob_all = np.zeros((len(data), label_unique_num), np.float32)
+        y_test_all = np.zeros((len(data), label_unique_num), np.float32)
+
         va_idxes = []
         label_num = dataset.get_label_number()
 
@@ -109,16 +124,30 @@ class OOF:
         y_true_all = np.zeros(len(data), np.float32)
         # print(f"{split_label=}")
         for i, (tr_idx, val_idx) in enumerate(kf.split(data, split_label)):
+            print(f"OOF Fold {i + 1}/{self.KFoldSplit}")
             k_directory = directory / f"fold_{i + 1}"
             va_idxes.append(val_idx)
-            # print(f"{tr_idx=}, {val_idx=}, {len(data)=}")
             train_data, val_data = data[tr_idx], data[val_idx]
             train_label, val_label = label[tr_idx], label[val_idx]
 
+            train_num = len(train_data) * 2
+            train_da_data = np.empty((train_num, 96, 960), dtype=np.float32)
+            train_ad_label = np.empty((train_num), dtype=np.int64)
+            for i in range(len(train_data)):
+                train_da_data[2 * i] = train_data[i]
+                train_da_data[2 * i + 1] = self.data_augmentation(train_data[i])
+                # train_da_data[2 * i + 2] = self.data_augmentation(train_data[i])
+                train_ad_label[2 * i] = train_label[i]
+                train_ad_label[2 * i + 1] = train_label[i]
+                # train_ad_label[2 * i + 2] = train_label[i]
+
             new_train = SimpleDataset(
-                train_data,
-                train_label,
-                label_number,
+                train_da_data,
+                train_ad_label,
+                len(train_ad_label),
+                # train_data,
+                # train_label,
+                # len(train_label),
                 tmp_name + "_train" + str(i + 1),
             )
             new_val = SimpleDataset(
@@ -144,27 +173,23 @@ class OOF:
                 new_test,
                 evaluation,
             )
-            # params = model_config.get("learned_params", {})
             params = new_model.get_model_optimized_params(model_config)
-            # print(f"{params=}")
             new_model.learn(i, params)
-            new_model.reload()
-            # print(f"{val_data.shape=}")
-            pred = new_model.forecast(torch.tensor(val_data.astype(np.float32)))
-            # print(f"{pred.shape=}, {val_data.shape=}, {train_data.shape=}")
-            preds.append(pred.numpy())
-            # print(f"{preds[-1].shape=}, {len(preds)=}, {preds[0:10]=}")
-            # print(f"{test.shape=}")
-            pred_test = new_model.forecast(torch.tensor(test.astype(np.float32)))
-
-            preds_test.append(pred_test.numpy())
-            # print(f"{pred_test.shape=}, {pred.shape=}, {y_prob_all.shape=}")
-            # print(f"{pred_test[0:5]=}, {pred[0:5]=},{len(val_idx)=} ")
-            # print(f"{pred_test.shape=}, {len(preds_test)=}, {preds_test[0:10]=}")
-            # print(f"{pred.shape=}, {val_label.shape=}")
+            # new_model.clear()
+            # new_model.reload()
+            pred = new_model.forecast(torch.tensor(val_data.astype(np.float16)))
             y_prob_all[val_idx] = pred.numpy()
+            # print(f"{pred.numpy().shape=}")
+            # preds.append(pred.numpy())
+            # y_prob_all[val_idx] = pred.numpy()
+            pred_test = new_model.forecast(torch.tensor(test.astype(np.float16)))
+            # y_test_all[val_idx] = pred_test.numpy()
+
+            # preds_test.append(pred_test.numpy())
             y_true_all[val_idx] = val_label
             y_test_all += pred_test.numpy()
+
+            # new_model.clear()
 
         # final_score = evaluation(y_true_all, np.argmax(y_prob_all, axis=1))
         print(f"make_new_feature:{y_true_all.shape=}, {y_prob_all.shape=}")

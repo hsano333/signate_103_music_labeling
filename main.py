@@ -52,15 +52,15 @@ task = MLTask.Classification
 def my_evaluation(y_true, y_pred):
     print("My Evaluation")
     # print(f"{y_true.shape=}, {y_pred.shape=}")
-    # print(f"{y_true[0:5]=}, {y_pred[0:5]=}")
-    # y_pred_class = np.round(y_pred).astype(int)
+    # print(f"{y_true[0:15]=}, {y_pred[0:15]=}")
+    # print(f"{np.argmax(y_pred, axis=1)[0:15]=}, {y_true[0:15]=}")
     return accuracy_score(y_true, np.argmax(y_pred, axis=1))
 
 
 def my_last_evaluation(y_true, y_pred):
     print("Last Evaluation")
     # print(f"{y_true.shape=}, {y_pred.shape=}")
-    # print(f"{y_true[0:5]=}, {y_pred[0:5]=}")
+    # print(f"{y_true[0:15]=}, {y_pred[0:15]=}")
     # y_pred_class = np.round(y_pred).astype(int)
     if y_pred.ndim == 1:
         return accuracy_score(y_true, y_pred.astype(int))
@@ -73,7 +73,7 @@ LastEvaluation = my_last_evaluation
 
 
 def make_models():
-    dataset = ProcessedDataset(config["original_dataset"], "hand_writing")
+    dataset = ProcessedDataset(config["original_dataset"], "music_labeling")
     dataset.load()
 
     my_torch = MyTorch
@@ -120,8 +120,8 @@ def make_predict_models():
 def get_train_models(models):
     selected_models = []
     names = [
-        # "mytorch",
-        "randomforest",
+        "mytorch",
+        # "randomforest",
         # "xgboost",
         # "lightgbm",
         # "knn",
